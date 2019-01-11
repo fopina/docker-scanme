@@ -55,11 +55,16 @@ func PortsToString(ports []int) string {
 }
 
 func Notify(token string, message string) bool {
-	_, err := http.PostForm(
+	resp, err := http.PostForm(
 		"https://tgbots.skmobi.com/pushit/" + token,
 		url.Values{"msg": {message}, "format": {"Markdown"}},
 	)
-	return err == nil
+	if err != nil {
+		log.Println(resp)
+		log.Println(err)
+		return false
+	}
+	return true
 }
 
 func main() {
@@ -91,7 +96,8 @@ func main() {
 	params := append(
 		[]string{
 			"-oJ", file.Name(),
-			"-rate", *rateLimitPtr,
+			"--rate", *rateLimitPtr,
+			"-p", "1-65535",
 		},
 		flag.Args()...
 	)
@@ -104,7 +110,7 @@ func main() {
 		for targ_index, target := range flag.Args() {
 			ip, err := net.LookupHost(target)
 			if err == nil {
-				params[targ_index + 2] = ip[0]
+				params[targ_index + 6] = ip[0]
 			}
 		}
 		cmd := exec.Command(*masscanPathPtr, params...)

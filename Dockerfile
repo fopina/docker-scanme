@@ -19,7 +19,7 @@ RUN make -j
 
 FROM alpine:3.8
 
-RUN apk add --no-cache libpcap-dev
+RUN apk add --no-cache libpcap-dev ca-certificates
 COPY --from=builder1 /go/src/app/scanme /usr/bin/scanme
 COPY --from=builder2 /masscan/bin/masscan /usr/bin/masscan
 

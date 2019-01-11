@@ -12,6 +12,8 @@ import (
 func main() {
 	fileNamePtr := flag.String("oJ", "/dev/null", "output filename")
     setupPtr := flag.Bool("setup", false, "setup fake port results")
+    _ = flag.String("rate", "100", "fake param")
+    _ = flag.String("p", "80", "fake param")
 
 	flag.Parse()
 
