@@ -1,0 +1,1 @@
+This is a support branch to build the masscan docker dependency separately to speedi up travis-ci builds
