@@ -5,7 +5,7 @@ RUN apk add make gcc musl-dev linux-headers libpcap-dev clang
 ARG MASSCAN_VERSION=master
 
 RUN wget https://github.com/robertdavidgraham/masscan/archive/${MASSCAN_VERSION}.tar.gz
-RUN tar xvf ${MASSCAN_VERSION}.tar.gz
+RUN tar xf ${MASSCAN_VERSION}.tar.gz
 RUN mv masscan-${MASSCAN_VERSION} masscan
 WORKDIR /masscan
 RUN make -j
