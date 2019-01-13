@@ -1,30 +1,42 @@
-bin/fakemasscan: fakemasscan.go
-	go build -o bin/fakemasscan -ldflags '-w -s' fakemasscan.go
+ROOT=$(abspath $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
+IMAGE=fopina/scanme
 
-bin/scanme: scanme.go
-	go build -o bin/scanme -ldflags '-w -s' scanme.go
+all: build push
 
-.PHONE: test
-test: bin/fakemasscan bin/scanme
-	bin/scanme -path bin/fakemasscan -sleep 0 -show 45.33.32.156
+$(BINDIR)bin/fakemasscan: fakemasscan.go
+	go build -o $(BINDIR)bin/fakemasscan -ldflags '-w -s' fakemasscan.go
 
-.PHONE: longtest
-longtest: bin/fakemasscan bin/scanme
+$(BINDIR)bin/scanme: scanme.go
+	go build -o $(BINDIR)bin/scanme -ldflags '-w -s' scanme.go
+
+test: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
+	$(BINDIR)bin/scanme -path $(BINDIR)bin/fakemasscan -sleep 0 -show 45.33.32.156
+
+longtest: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
 	$(eval export FAKEMASSCAN := $(shell mktemp))
-	bin/fakemasscan -setup 1,2,3 2,3 3,4
-	bin/scanme -path bin/fakemasscan -sleep 1 45.33.32.156
+	$(BINDIR)bin/fakemasscan -setup 1,2,3 2,3 3,4
+	$(BINDIR)bin/scanme -path $(BINDIR)bin/fakemasscan -sleep 1 45.33.32.156
 
-.PHONY: build
-build: test
-	@docker build -t fopina/scanme .
+dockertest:
+	docker run -v $(ROOT):/app:ro -w /app golang:1.11-alpine3.8 sh -c 'apk add make && make test BINDIR=/appbin/'
 
-.PHONY: push
+build: dockertest
+	docker build -t $(IMAGE) .
+
 push: 
-	@docker push fopina/scanme:latest
+	docker push $(IMAGE):latest
 
-.PHONY: hub
-hub: build push
+travis-tag: build
+	docker tag $(IMAGE) $(IMAGE):latest
+	docker tag $(IMAGE) $(IMAGE):$(TAG)
+	docker push $(IMAGE):latest
+	docker push $(IMAGE):$(TAG)
 
-.PHONY: clean
+travis-dev: build
+	docker tag $(IMAGE) $(IMAGE):dev
+	docker push $(IMAGE):dev
+
 clean:
 	rm -f bin/*
+
+.PHONY: all clean push build longtest test dockertest
