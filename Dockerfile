@@ -7,6 +7,7 @@ RUN go build scanme.go
 FROM fopina/scanme:masscan as builder2
 
 # nothing to do, just speed up travis-ci build
+# image built in orphan branch "masscan"
 
 FROM alpine:3.8
 
