@@ -14,8 +14,8 @@ test: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
 
 longtest: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
 	$(eval export FAKEMASSCAN := $(shell mktemp))
-	$(BINDIR)bin/fakemasscan -setup 1,2,3 2,3 3,4
-	$(BINDIR)bin/scanme -path $(BINDIR)bin/fakemasscan -sleep 1 45.33.32.156
+	$(BINDIR)bin/fakemasscan -setup 1,2,3 2,3 3,4 "" 4
+	$(BINDIR)bin/scanme -show -path $(BINDIR)bin/fakemasscan -sleep 1 45.33.32.156
 
 dockertest:
 	docker run -v $(ROOT):/app:ro -w /app golang:1.11-alpine3.8 sh -c 'apk add make && make test BINDIR=/appbin/'

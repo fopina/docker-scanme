@@ -50,16 +50,16 @@ func main() {
         }
 
         if ports == "" {
-            ports = "1,2,3"
+            fmt.Fprintf(file, "")
+        } else {
+            portArray := strings.Split(ports, ",")
+            output := make([]string, len(portArray))
+
+            for pi, port := range portArray {
+                output[pi] = `{   "ip": "45.33.32.156",   "timestamp": "1546596407", "ports": [ {"port": ` + string(port) + `, "proto": "tcp", "status": "open", "reason": "syn-ack", "ttl": 49} ] }`
+            }
+
+            fmt.Fprintf(file, "[" + strings.Join(output, ",") + "]")
         }
-
-        portArray := strings.Split(ports, ",")
-        output := make([]string, len(portArray))
-
-        for pi, port := range portArray {
-            output[pi] = `{   "ip": "45.33.32.156",   "timestamp": "1546596407", "ports": [ {"port": ` + string(port) + `, "proto": "tcp", "status": "open", "reason": "syn-ack", "ttl": 49} ] }`
-        }
-
-        fmt.Fprintf(file, "[" + strings.Join(output, ",") + "]")
     }
 }

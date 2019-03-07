@@ -110,7 +110,10 @@ func main() {
 		for targ_index, target := range flag.Args() {
 			ip, err := net.LookupHost(target)
 			if err == nil {
+				summary[ip[0]] = []int{}
 				params[targ_index + 6] = ip[0]
+			} else {
+				summary[target] = []int{}
 			}
 		}
 		cmd := exec.Command(*masscanPathPtr, params...)
@@ -133,8 +136,10 @@ func main() {
 		defer jsonFile.Close()
 
 		byteValue, _ := ioutil.ReadAll(jsonFile)
-
-		json.Unmarshal(byteValue, &results)
+		err = json.Unmarshal(byteValue, &results)
+		if (err != nil) {
+			results = []Result{}
+		}
 
 		for _, result := range results {
 			ipArray, exists := summary[result.IP]
