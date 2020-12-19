@@ -1,9 +1,0 @@
-branches:
-  only:
-    - master
-    - /^\d+\.\d+\.\d+.*$/
-
-script:
-  - docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-  - if [[ -z $TRAVIS_TAG ]]; then make travis-dev; fi
-  - if [[ -n $TRAVIS_TAG ]]; then make travis-tag TAG=$TRAVIS_TAG; fi
