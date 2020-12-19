@@ -2,7 +2,7 @@
 
 ScanMe allows easy continuous scan of an IP (or list of IPs).
 
-[![Build Status](https://travis-ci.org/fopina/docker-scanme.svg?branch=master)](https://travis-ci.org/fopina/docker-scanme)
+![release](https://github.com/fopina/scanme/workflows/release/badge.svg)
 [![](https://images.microbadger.com/badges/version/fopina/scanme.svg)](https://microbadger.com/images/fopina/scanme "Get your own version badge on microbadger.com")
 [![](https://images.microbadger.com/badges/image/fopina/scanme.svg)](https://microbadger.com/images/fopina/scanme "Get your own image badge on microbadger.com")
 
