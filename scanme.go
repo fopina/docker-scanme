@@ -1,52 +1,57 @@
 package main
 
 import (
-	"log"
-	"flag"
-	"os/exec"
-	"io/ioutil"
-	"os"
-	"time"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
-	"strings"
-	"strconv"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
 )
 
-type Result struct {
-	IP   		string `json:"ip"`
-	Timestamp   string `json:"timestamp"`
-	Ports    	[]Port `json:"ports"`
+type result struct {
+	IP        string `json:"ip"`
+	Timestamp string `json:"timestamp"`
+	Ports     []port `json:"ports"`
 }
 
-type Port struct {
-	Port   	int    `json:"port"`
-	Proto   string `json:"proto"`
-	Status  string `json:"status"`
-	Reason  string `json:"reason"`
-	TTL   	int    `json:"ttl"`
+type port struct {
+	Port   int    `json:"port"`
+	Proto  string `json:"proto"`
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+	TTL    int    `json:"ttl"`
+}
+
+type openPort struct {
+	SeentAt int
+	Open    bool
 }
 
 // https://siongui.github.io/2018/03/14/go-set-difference-of-two-arrays/
-func Difference(a, b []int) (diff []int) {
-      m := make(map[int]bool)
+func difference(a, b []int) (diff []int) {
+	m := make(map[int]bool)
 
-      for _, item := range b {
-              m[item] = true
-      }
+	for _, item := range b {
+		m[item] = true
+	}
 
-      for _, item := range a {
-              if _, ok := m[item]; !ok {
-                      diff = append(diff, item)
-              }
-      }
-      return
+	for _, item := range a {
+		if _, ok := m[item]; !ok {
+			diff = append(diff, item)
+		}
+	}
+	return
 }
 
-func PortsToString(ports []int) string {
+func portsToString(ports []int) string {
 	r := make([]string, len(ports))
 	for pi, port := range ports {
 		r[pi] = strconv.Itoa(port)
@@ -54,9 +59,9 @@ func PortsToString(ports []int) string {
 	return strings.Join(r, ",")
 }
 
-func Notify(token string, message string) bool {
+func notify(token string, message string) bool {
 	resp, err := http.PostForm(
-		"https://tgbots.skmobi.com/pushit/" + token,
+		"https://tgbots.skmobi.com/pushit/"+token,
 		url.Values{"msg": {message}, "format": {"Markdown"}},
 	)
 	if err != nil {
@@ -75,31 +80,31 @@ func main() {
 	notifyTokenPtr := flag.String("token", "", "PushItBot token for notifications")
 
 	flag.Usage = func() {
-        fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] target [target ...]\n", os.Args[0])
-        fmt.Fprintf(flag.CommandLine.Output(), "\nContinuously scan one (or more) targets\n")
-        fmt.Fprintf(flag.CommandLine.Output(), "\nOptions:\n")
-        flag.PrintDefaults()
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] target [target ...]\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\nContinuously scan one (or more) targets\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "\nOptions:\n")
+		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if flag.NArg() == 0 { 
+	if flag.NArg() == 0 {
 		log.Fatal("specify at least one target (IP or hostname): check -h")
 	}
 
 	file, err := ioutil.TempFile("", "scanme.*.json")
 	if err != nil {
-	    log.Fatal(err)
+		log.Fatal(err)
 	}
 	defer os.Remove(file.Name())
 
-	var results []Result
+	var results []result
 	params := append(
 		[]string{
 			"-oJ", file.Name(),
 			"--rate", *rateLimitPtr,
 			"-p", "1-65535",
 		},
-		flag.Args()...
+		flag.Args()...,
 	)
 
 	var lastRun map[string][]int
@@ -107,24 +112,24 @@ func main() {
 	for {
 		summary := make(map[string][]int)
 		// resolve hostnames for each iteration = up2date resolution
-		for targ_index, target := range flag.Args() {
+		for targIndex, target := range flag.Args() {
 			ip, err := net.LookupHost(target)
 			if err == nil {
 				summary[ip[0]] = []int{}
-				params[targ_index + 6] = ip[0]
+				params[targIndex+6] = ip[0]
 			} else {
 				summary[target] = []int{}
 			}
 		}
 		cmd := exec.Command(*masscanPathPtr, params...)
 		log.Printf("Scanning %v", flag.Args())
-		if (*showOutputPtr) {
+		if *showOutputPtr {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 		}
 		start := time.Now()
 		err = cmd.Run()
-		if (err != nil) {
+		if err != nil {
 			log.Printf("Scan error: %v", err)
 		}
 		log.Printf("Scan finished in %v", time.Since(start))
@@ -137,8 +142,8 @@ func main() {
 
 		byteValue, _ := ioutil.ReadAll(jsonFile)
 		err = json.Unmarshal(byteValue, &results)
-		if (err != nil) {
-			results = []Result{}
+		if err != nil {
+			results = []result{}
 		}
 
 		for _, result := range results {
@@ -150,27 +155,27 @@ func main() {
 				summary[result.IP] = append(ipArray, port.Port)
 			}
 		}
-		
+
 		for k, v := range summary {
-			newPorts := Difference(v, lastRun[k])
-			closedPorts := Difference(lastRun[k], v)
+			newPorts := difference(v, lastRun[k])
+			closedPorts := difference(lastRun[k], v)
 			report := false
 			var output []string
 
 			if len(newPorts) > 0 {
-				output = append(output, fmt.Sprintf("*NEW*: `%s`", PortsToString(newPorts)))
+				output = append(output, fmt.Sprintf("*NEW*: `%s`", portsToString(newPorts)))
 				report = true
 			}
 			if len(closedPorts) > 0 {
-				output = append(output, fmt.Sprintf("*CLOSED*: `%s`", PortsToString(closedPorts)))
+				output = append(output, fmt.Sprintf("*CLOSED*: `%s`", portsToString(closedPorts)))
 				report = true
 			}
 
 			if report {
-				output = append(output, fmt.Sprintf("*FINAL*: `%s`", PortsToString(v)))
+				output = append(output, fmt.Sprintf("*FINAL*: `%s`", portsToString(v)))
 				log.Printf("%s - %s", k, strings.Join(output, " | "))
 				if *notifyTokenPtr != "" {
-					Notify(*notifyTokenPtr, fmt.Sprintf("== %s ==\n%s", k, strings.Join(output,"\n")))
+					notify(*notifyTokenPtr, fmt.Sprintf("== %s ==\n%s", k, strings.Join(output, "\n")))
 				}
 
 			}
@@ -178,7 +183,7 @@ func main() {
 		}
 		lastRun = summary
 
-		if (*sleepIntervalPtr < 1) {
+		if *sleepIntervalPtr < 1 {
 			break
 		}
 		time.Sleep(time.Duration(*sleepIntervalPtr) * time.Second)
