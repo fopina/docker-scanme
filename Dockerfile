@@ -2,7 +2,7 @@ FROM golang:1.15-alpine3.12 as builder1
 
 WORKDIR /go/src/app
 COPY scanme.go /go/src/app
-RUN go build scanme.go
+RUN go build -ldflags '-w -s' scanme.go
 
 FROM fopina/scanme:masscan as builder2
 
