@@ -31,24 +31,8 @@ type port struct {
 }
 
 type openPort struct {
-	SeentAt int
-	Open    bool
-}
-
-// https://siongui.github.io/2018/03/14/go-set-difference-of-two-arrays/
-func difference(a, b []int) (diff []int) {
-	m := make(map[int]bool)
-
-	for _, item := range b {
-		m[item] = true
-	}
-
-	for _, item := range a {
-		if _, ok := m[item]; !ok {
-			diff = append(diff, item)
-		}
-	}
-	return
+	seentAt uint
+	open    bool
 }
 
 func portsToString(ports []int) string {
@@ -78,6 +62,7 @@ func main() {
 	rateLimitPtr := flag.String("rate", "100", "masscan rate")
 	showOutputPtr := flag.Bool("show", false, "show masscan output")
 	notifyTokenPtr := flag.String("token", "", "PushItBot token for notifications")
+	closedAfter := flag.Int("closed-after", 3, "port is considered closed only after missed X times")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] target [target ...]\n", os.Args[0])
@@ -107,18 +92,25 @@ func main() {
 		flag.Args()...,
 	)
 
-	var lastRun map[string][]int
+	reverseIP := make(map[string]string)
+	status := make(map[string]map[int]*openPort)
+	// should probably make iter circular... but even it ticked every second, it's still 136 years to overflow...
+	iter := uint(0)
 
 	for {
-		summary := make(map[string][]int)
+		iter++
 		// resolve hostnames for each iteration = up2date resolution
+		// to update masscan argv with IP
 		for targIndex, target := range flag.Args() {
 			ip, err := net.LookupHost(target)
+			realTarget := target
 			if err == nil {
-				summary[ip[0]] = []int{}
+				realTarget = ip[0]
 				params[targIndex+6] = ip[0]
-			} else {
-				summary[target] = []int{}
+			}
+			reverseIP[realTarget] = target
+			if _, ok := status[realTarget]; !ok {
+				status[realTarget] = make(map[int]*openPort)
 			}
 		}
 		cmd := exec.Command(*masscanPathPtr, params...)
@@ -147,20 +139,36 @@ func main() {
 		}
 
 		for _, result := range results {
-			ipArray, exists := summary[result.IP]
-			if !exists {
-				ipArray = []int{}
-			}
 			for _, port := range result.Ports {
-				summary[result.IP] = append(ipArray, port.Port)
+				if val, ok := status[result.IP][port.Port]; ok {
+					val.seentAt = iter
+				} else {
+					// leave as "false" so it is marked as "new" later
+					status[result.IP][port.Port] = &openPort{seentAt: iter, open: false}
+				}
 			}
 		}
-
-		for k, v := range summary {
-			newPorts := difference(v, lastRun[k])
-			closedPorts := difference(lastRun[k], v)
-			report := false
+		for ip, ports := range status {
+			var newPorts []int
+			var closedPorts []int
+			var totalPorts []int
 			var output []string
+			report := false
+
+			for port, data := range ports {
+				if !data.open && data.seentAt == iter {
+					data.open = true
+					newPorts = append(newPorts, port)
+					totalPorts = append(totalPorts, port)
+				} else if data.open {
+					if iter-data.seentAt >= uint(*closedAfter) {
+						closedPorts = append(closedPorts, port)
+						data.open = false
+					} else {
+						totalPorts = append(totalPorts, port)
+					}
+				}
+			}
 
 			if len(newPorts) > 0 {
 				output = append(output, fmt.Sprintf("*NEW*: `%s`", portsToString(newPorts)))
@@ -172,16 +180,13 @@ func main() {
 			}
 
 			if report {
-				output = append(output, fmt.Sprintf("*FINAL*: `%s`", portsToString(v)))
-				log.Printf("%s - %s", k, strings.Join(output, " | "))
+				output = append(output, fmt.Sprintf("*FINAL*: `%s`", portsToString(totalPorts)))
+				log.Printf("%s (%s) - %s", reverseIP[ip], ip, strings.Join(output, " | "))
 				if *notifyTokenPtr != "" {
-					notify(*notifyTokenPtr, fmt.Sprintf("== %s ==\n%s", k, strings.Join(output, "\n")))
+					notify(*notifyTokenPtr, fmt.Sprintf("== %s (%s) ==\n%s", reverseIP[ip], ip, strings.Join(output, "\n")))
 				}
-
 			}
-
 		}
-		lastRun = summary
 
 		if *sleepIntervalPtr < 1 {
 			break
