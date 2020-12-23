@@ -10,6 +10,7 @@ $(BINDIR)bin/scanme: scanme.go
 	go build -o $(BINDIR)bin/scanme -ldflags '-w -s' scanme.go
 
 test: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
+	go test -cov ./...
 	$(BINDIR)bin/scanme -path $(BINDIR)bin/fakemasscan -sleep 0 -show 45.33.32.156
 
 longtest: $(BINDIR)bin/fakemasscan $(BINDIR)bin/scanme
