@@ -67,7 +67,6 @@ func (s *Scanner) notify(message string) bool {
 		url.Values{"msg": {message}, "format": {"Markdown"}},
 	)
 	if err != nil {
-		log.Println(resp)
 		log.Println(err)
 		return false
 	}
